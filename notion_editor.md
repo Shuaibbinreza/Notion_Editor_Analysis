@@ -585,3 +585,131 @@ const html = generateHTML(editorJson, extensions)
 | Convert to PDF              | Use our existing HTML → PDF pipeline (wkhtmltopdf, dompdf, etc.)        |
 
 ---
+
+## 🛠️ Using a Notion-like Editor with CakePHP (and jQuery)
+Since we’re working with **CakePHP** and **jQuery**, and not using React, integrating Tiptap or BlockNote directly might be a bit tricky. However, there are still ways to use **block-based editing** in our CakePHP project. Let’s break it down into actionable steps:
+
+---
+
+### 1. **Use a Vanilla JavaScript Notion-like Editor (e.g., Tiptap JS)**
+
+While Tiptap and BlockNote are built for React, we can still use their **JavaScript versions** (they provide plain JavaScript implementations). Here's how:
+
+#### Option A: **Tiptap (Plain JS)**
+
+Tiptap offers **vanilla JavaScript** support (without React). We can use the same **block-based editing** but with standard DOM elements and JavaScript.
+
+- **Steps to Integrate:**
+  1. **Install Tiptap and Dependencies**:
+     - Install Tiptap via npm or include it via CDN.
+     - Tiptap has a simple integration for **vanilla JS** that doesn’t require React.
+     
+     ```bash
+     npm install @tiptap/core @tiptap/starter-kit
+     ```
+
+  2. **Set Up Editor (Vanilla JS)**:
+     Here's a basic Tiptap setup for a CakePHP app:
+
+     ```html
+     <div id="editor"></div>
+
+     <script src="path/to/tiptap.js"></script>
+     <script>
+       const { Editor } = window.Tiptap;
+
+       const editor = new Editor({
+         element: document.querySelector('#editor'),
+         extensions: [
+           // Add your extensions here (e.g., paragraph, heading, bullet lists)
+           new window.Tiptap.StarterKit(),
+         ],
+         content: "<p>Type your content here</p>", // Initial content
+       });
+
+       // Save the content as JSON (to send to your CakePHP backend)
+       const jsonContent = editor.getJSON();
+       console.log(jsonContent); // Send this to your backend
+     </script>
+     ```
+
+  3. **Save JSON to CakePHP Backend**:
+     - Send the **JSON block** to your CakePHP backend using **AJAX** (via jQuery).
+     - Save this in your database as a JSON object.
+
+     ```javascript
+     $.ajax({
+       type: 'POST',
+       url: '/your-cakephp-controller/saveContent',
+       data: { content: JSON.stringify(jsonContent) },
+       success: function(response) {
+         console.log("Content saved successfully");
+       },
+       error: function(err) {
+         console.log("Error saving content");
+       }
+     });
+     ```
+
+#### Option B: **BlockNote (Vanilla JS)**
+
+- BlockNote also has a **vanilla JS** version that you can embed directly into your page.
+
+- **Steps**:
+  1. **Include BlockNote** in your project (either via CDN or npm).
+  2. Use the **block-based editor** to allow content editing.
+  3. Similar to Tiptap, you’d send the **JSON blocks** to your CakePHP backend using jQuery AJAX.
+
+---
+
+### 2. **Convert JSON to HTML for PDF Generation**
+Once you have the JSON data from the Notion-like editor (Tiptap or BlockNote), you’ll need to convert that JSON to HTML (which is needed for PDF generation).
+
+- **Using Tiptap's JS Renderer**:
+  Tiptap provides a `generateHTML` function to convert the JSON content into HTML:
+  
+  ```javascript
+  const html = generateHTML(jsonContent, [
+    // Define extensions to help with HTML conversion
+    new window.Tiptap.StarterKit(),
+  ]);
+  ```
+
+  Once you have the HTML, you can send it to the backend (CakePHP) and use your existing **wkhtmltopdf** or **dompdf** pipeline to generate a PDF.
+
+---
+
+### 3. **Backend (CakePHP) Handling**
+In CakePHP, we'll need to:
+1. **Receive the JSON content** via POST.
+2. **Store it** as JSON in your database.
+3. **Convert the JSON to HTML** when you need to render the page and pass it to PDF tools.
+4. **Generate PDF** using your existing workflow (using wkhtmltopdf, dompdf, etc.).
+
+For example, in CakePHP:
+```php
+public function saveContent() {
+    $this->autoRender = false;
+    $data = $this->request->getData('content'); // JSON block content
+    $decodedContent = json_decode($data, true);
+
+    // Save JSON to the database
+    $this->loadModel('Contents');
+    $contentEntity = $this->Contents->newEntity();
+    $contentEntity->content = json_encode($decodedContent);
+    $this->Contents->save($contentEntity);
+
+    $this->response->withStatus(200)->send();
+}
+```
+
+For generating HTML from JSON and sending it to **wkhtmltopdf**:
+```php
+// Convert JSON to HTML (you'll need to implement or use a parser for the block content)
+$htmlContent = convertJsonToHtml($decodedContent);
+
+// Use wkhtmltopdf to generate PDF
+exec("wkhtmltopdf " . escapeshellarg($htmlContent) . " output.pdf");
+```
+
+---
